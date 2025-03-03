@@ -30,6 +30,7 @@ private:
 
 
 	void rotate();
+	void flip();
 };
 
 
