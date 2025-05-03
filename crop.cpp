@@ -17,10 +17,10 @@ Crop::Crop(string path_to_img, int domain_size, int rang_size)
     int new_cols = input_img_.cols - (input_img_.cols % domain_bloc_size_);
 
     input_img_ = input_img_(Rect(0, 0, new_cols, new_rows));
-
     output_img_.create(new_rows, new_cols, CV_8UC1);
 
     split();
+
     merge();
 
     imshow("merge", output_img_);
@@ -63,34 +63,38 @@ void Crop::merge()
     }
 }
 
-void Crop::rotate()
+Mat Crop::contractive(Mat&block, float brightness = 0.0f, float contrast = 1.0f )
 {
-    int n = 0;
+    Mat reduce = Crop::reduceDomain(block);
+    Mat flip   = Crop::flip(reduce, 1);
+    Mat rotate = Crop::rotate(flip);
 
-    for (int i = 0; i < output_img_.rows; i += rang_bloc_size_)
-    {
-        for (int j = 0; j < output_img_.cols; j += rang_bloc_size_)
-        {
-            Mat m = getRotationMatrix2D(Point((rois_.at(n).cols -1)/ 2.0f, (rois_.at(n).rows -1)/ 2.0f), 90.0, 1.0);
-            warpAffine(rois_.at(n), rois_.at(n), m, rois_.at(0).size());
+    Mat contractive = contrast * rotate + brightness;
 
-            rois_.at(n).copyTo(output_img_(Rect(j, i, rang_bloc_size_, rang_bloc_size_)));
-            n++;
-        }
-    }
+    return contractive;
 }
 
-void Crop::flip()
+Mat Crop::reduceDomain(Mat&to_reduce)
 {
-    int n = 0;
-    for (int i = 0; i < output_img_.rows; i += rang_bloc_size_)
-    {
-        for (int j = 0; j < output_img_.cols; j += rang_bloc_size_)
-        {
-            cv::flip(rois_.at(n), rois_.at(n), 1);
+        const Mat reduce;
+        resize(to_reduce, reduce, rois_[0].size(), INTER_AREA);
+        
+        return reduce;
+}
 
-            rois_.at(n).copyTo(output_img_(Rect(j, i, rang_bloc_size_, rang_bloc_size_)));
-            n++;
-        }
-    }
+Mat Crop::rotate(Mat&to_rotate)
+{
+    Mat rotate;
+    Mat rotated= getRotationMatrix2D(Point((rois_.at(0).cols -1)/ 2.0f, (rois_.at(0).rows -1)/ 2.0f), 90.0, 1.0);
+    warpAffine(to_rotate, rotate, rotated, rois_.at(0).size());
+
+    return rotate;
+}
+
+Mat Crop::flip(Mat&to_flip, int direction)
+{
+    Mat flipped;
+    cv::flip(to_flip, flipped, 1);
+
+    return flipped;
 }

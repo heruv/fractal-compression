@@ -18,6 +18,7 @@ public:
 private:
 	vector<Mat> rois_;
 	vector<Mat> domain_rois_;
+	vector<Mat> reduce_domain;
 
 	Mat input_img_;
 	Mat output_img_;
@@ -28,9 +29,10 @@ private:
 	void split();
 	void merge();
 
-
-	void rotate();
-	void flip();
+	Mat contractive(Mat&block, float brightness, float contrast, float angle);
+	Mat reduceDomain(Mat&to_reduce);
+	Mat rotate(Mat&to_rotate, float angle);
+	Mat flip(Mat&to_flip, int direction);
 };
 
 
