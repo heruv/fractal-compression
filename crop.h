@@ -10,6 +10,14 @@
 using namespace cv;
 using namespace std;
 
+struct BestTransform
+{
+	unsigned int index;
+	short direction;
+	tuple<float, float> factor;
+	float rotation_angle;
+};
+
 class Crop
 {
 public:
@@ -18,7 +26,6 @@ public:
 private:
 	vector<Mat> rois_;
 	vector<Mat> domain_rois_;
-	vector<Mat> reduce_domain;
 
 	Mat input_img_;
 	Mat output_img_;
@@ -26,13 +33,19 @@ private:
 	int domain_bloc_size_;
 	int rang_bloc_size_;
 
+	BestTransform ratio_;
+
 	void split();
 	void merge();
 
-	Mat contractive(Mat&block, float brightness, float contrast, float angle);
+	Mat contractive(Mat&block, tuple<float,float> coef, float angle);
 	Mat reduceDomain(Mat&to_reduce);
 	Mat rotate(Mat&to_rotate, float angle);
 	Mat flip(Mat&to_flip, int direction);
+
+	tuple<float,float> findContrastBrightness(Mat&domain_block, Mat&range_block);
+	void findBestRatio();
+	float findError(Mat& domain_block, Mat& range_block);
 };
 
 

@@ -63,29 +63,29 @@ void Crop::merge()
     }
 }
 
-Mat Crop::contractive(Mat&block, float brightness = 0.0f, float contrast = 1.0f )
+Mat Crop::contractive(Mat&block, tuple<float,float> coef, float angle = 90.0f )
 {
     Mat reduce = Crop::reduceDomain(block);
     Mat flip   = Crop::flip(reduce, 1);
-    Mat rotate = Crop::rotate(flip);
+    Mat rotate = Crop::rotate(flip, angle);
 
-    Mat contractive = contrast * rotate + brightness;
+    Mat contractive = get<0>(coef) * rotate + get<1>(coef);
 
     return contractive;
 }
 
 Mat Crop::reduceDomain(Mat&to_reduce)
 {
-        const Mat reduce;
-        resize(to_reduce, reduce, rois_[0].size(), INTER_AREA);
+        Mat reduce;
+        resize(to_reduce, reduce, rois_[0].size());
         
         return reduce;
 }
 
-Mat Crop::rotate(Mat&to_rotate)
+Mat Crop::rotate(Mat&to_rotate, float angle)
 {
     Mat rotate;
-    Mat rotated= getRotationMatrix2D(Point((rois_.at(0).cols -1)/ 2.0f, (rois_.at(0).rows -1)/ 2.0f), 90.0, 1.0);
+    Mat rotated= getRotationMatrix2D(Point((rois_.at(0).cols -1)/ 2.0f, (rois_.at(0).rows -1)/ 2.0f), angle, 1.0);
     warpAffine(to_rotate, rotate, rotated, rois_.at(0).size());
 
     return rotate;
@@ -97,4 +97,67 @@ Mat Crop::flip(Mat&to_flip, int direction)
     cv::flip(to_flip, flipped, 1);
 
     return flipped;
+}
+
+tuple<float,float> Crop::findContrastBrightness(Mat&domain_block, Mat&range_block)
+{
+    float sum_D = 0, sum_R = 0, sum_D2 = 0, sum_DR = 0;
+
+
+    for (int i = 0; i < domain_block.rows; i++)
+    {
+        for (int j = 0; j < domain_block.cols; j++)
+        {
+            float D = domain_block.at<uchar>(i, j);
+            float R = range_block.at<uchar>(i, j);
+
+            sum_D += D;
+            sum_R += R;
+            sum_D2 = D * D;
+            sum_DR = D * R;
+        }
+    }
+
+    float contrast = (domain_block.rows * domain_block.cols * sum_DR - sum_D * sum_R) /
+        domain_block.rows * domain_block.cols * sum_D2 - sum_D * sum_D;
+    
+    float brightness = (sum_R - contrast * sum_D) / domain_block.rows * domain_block.cols;
+
+
+    return {contrast, brightness};
+}
+
+void Crop::findBestRatio()
+{
+    int angle;
+
+    for (int i = 0; i < rois_.size(); i++)
+    {
+        float error = INFINITY;
+
+        for (int j = 0; j < domain_rois_.size(); j++)
+        {
+            tuple<float, float> factor = findContrastBrightness(domain_rois_[j], rois_[i]);
+
+            domain_rois_[j] = contractive(domain_rois_[j], factor, angle * 90.0f);
+
+            if (error < findError(domain_rois_[j], rois_[i]))
+            {
+                error = findError(domain_rois_[j], rois_[i]);
+
+                //it's temp solution
+                ratio_.direction = 1;
+
+                ratio_.factor = factor;
+                ratio_.rotation_angle = angle * 90.0f;
+                ratio_.index = j;
+            }
+        }
+    }
+}
+
+float Crop::findError(Mat& domain_block, Mat& range_block)
+{
+
+    return 0.0f;
 }
